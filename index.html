@@ -1,0 +1,698 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Grand Luxury Tree (Final Pro)</title>
+
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@700&family=Great+Vibes&family=Monoton&family=Abril+Fatface&family=Ma+Shan+Zheng&display=swap');
+
+    body { margin: 0; overflow: hidden; background-color: #050505; font-family: 'Microsoft YaHei', 'Songti SC', serif; }
+    #canvas-container { width: 100vw; height: 100vh; position: absolute; top: 0; left: 0; z-index: 1; }
+
+    /* 光标样式 */
+    #hand-cursor {
+      position: absolute; width: 24px; height: 24px;
+      border: 2px solid #ff6ec7; border-radius: 50%;
+      background: rgba(255, 110, 199, 0.2); box-shadow: 0 0 12px #ff6ec7;
+      z-index: 80; pointer-events: none; transform: translate(-50%, -50%);
+      display: none; transition: width 0.2s, height 0.2s, background 0.2s;
+    }
+    #hand-cursor.active {
+      width: 45px; height: 45px;
+      background: rgba(100, 255, 140, 0.4); border-color: #64ff8c; box-shadow: 0 0 25px #64ff8c;
+    }
+
+    :root {
+      --glass-bg: rgba(25, 10, 20, 0.72);
+      --glass-border: rgba(255, 255, 255, 0.10);
+      --glass-highlight: rgba(255, 255, 255, 0.16);
+      --accent: #ff6ec7; --accent-soft: #ffd1ef;
+      --accent-glow: rgba(255, 110, 199, 0.35);
+      --text-main: #ffffff; --text-sub: rgba(255,255,255,0.70);
+      --panel-width: 210px; --ui-scale: 0.92;
+    }
+
+    @media screen and (max-height: 800px) { :root { --ui-scale: 0.82; } }
+    @media screen and (min-width: 2000px) { :root { --ui-scale: 1.08; } }
+    :fullscreen { --ui-scale: 1.0; }
+
+    .glass-panel {
+      background: var(--glass-bg);
+      backdrop-filter: blur(40px) saturate(180%);
+      -webkit-backdrop-filter: blur(40px) saturate(180%);
+      border-radius: 16px;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6), inset 0.5px 0.5px 0px var(--glass-highlight), inset -0.5px -0.5px 0px rgba(0,0,0,0.55);
+      border: 1px solid var(--glass-border); overflow: hidden; box-sizing: border-box;
+    }
+    .hidden { display: none !important; }
+    #ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 10; pointer-events: none; }
+    #top-right-controls { position: absolute; top: 15px; right: 15px; pointer-events: auto; display: flex; flex-direction: column; gap: 8px; align-items: flex-end; z-index: 50; }
+    
+    .elegant-btn {
+      background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 110, 199, 0.38);
+      color: var(--accent); padding: 8px 12px; cursor: pointer;
+      text-transform: uppercase; font-size: 11px; transition: all 0.25s ease;
+      display: inline-flex; align-items: center; justify-content: center;
+      border-radius: 10px; font-family: 'Microsoft YaHei', sans-serif;
+      text-decoration: none; user-select: none; pointer-events: auto;
+    }
+    .elegant-btn:hover { background: rgba(255, 110, 199, 0.12); border-color: rgba(255,255,255,0.35); color: #fff; box-shadow: 0 0 16px var(--accent-glow); text-shadow: 0 0 6px rgba(255, 255, 255, 0.65); }
+    .elegant-btn:active { transform: scale(0.98); }
+
+    #left-sidebar { position: absolute; top: 15px; left: 15px; width: var(--panel-width); z-index: 20; transform: scale(var(--ui-scale)); transform-origin: top left; pointer-events: none; }
+    #left-sidebar .panel-inner { pointer-events: auto; padding: 12px; display: flex; flex-direction: column; gap: 10px; }
+    .ui-title-main { font-family: 'SimSun', 'Songti SC', serif; font-size: 14px; font-weight: 800; color: var(--accent-soft); text-shadow: 0 0 14px var(--accent-glow); border-bottom: 1px solid rgba(255, 110, 199, 0.28); padding-bottom: 6px; margin-bottom: 2px; letter-spacing: 2px; text-align: center; }
+    .ui-tip { font-size: 10px; color: var(--text-sub); line-height: 1.5; text-align: center; opacity: 0.9; }
+    .left-btn { width: 100%; height: 40px; font-size: 12px; letter-spacing: 1px; border-radius: 12px; }
+
+    #blessing-panel { position: absolute; top: 18%; right: 15px; width: min(38vw, 520px); max-width: 520px; padding: 16px 16px 14px; z-index: 45; pointer-events: auto; transform: scale(var(--ui-scale)); transform-origin: top right; }
+    #blessing-panel h3 { margin: 0 0 8px 0; font-size: 12px; letter-spacing: 2px; color: var(--accent-soft); text-shadow: 0 0 10px var(--accent-glow); font-family: 'Cinzel', serif; }
+    #blessing-text { margin: 0; font-size: 14px; line-height: 1.7; color: rgba(255,255,255,0.88); white-space: pre-wrap; }
+
+    #title-container { position: absolute; top: 9%; left: 50%; transform: translateX(-50%); text-align: center; pointer-events: none; z-index: 50; user-select: none; padding: 10px; }
+    .title-line { margin: 0; white-space: nowrap; color: var(--accent-soft); text-shadow: 0 0 30px var(--accent-glow); font-family: 'Great Vibes', cursive; font-weight: 400; font-size: 82px; }
+    @media (max-width: 900px) { .title-line { font-size: 56px; } }
+
+    #view-btn { position: absolute; right: 15px; bottom: 15px; z-index: 60; transform: scale(var(--ui-scale)); transform-origin: bottom right; }
+
+    #webcam-wrapper { position: absolute; bottom: 70px; right: 15px; width: 170px; height: 128px; border: 1px solid rgba(255, 110, 199, 0.55); border-radius: 12px; box-shadow: 0 0 22px rgba(0, 0, 0, 0.9); overflow: hidden; z-index: 55; pointer-events: auto; background: #000; transition: opacity 0.35s ease, transform 0.35s ease; transform: scale(var(--ui-scale)); transform-origin: bottom right; }
+    #webcam-wrapper.camera-hidden { opacity: 0; pointer-events: none; transform: translateY(10px) scale(var(--ui-scale)); }
+    #webcam-canvas { width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); display: block; }
+    #cam-status { position: absolute; bottom: 7px; right: 7px; width: 7px; height: 7px; background: #550000; border-radius: 50%; box-shadow: 0 0 6px #ff0000; z-index: 30; transition: 0.2s; }
+    #cam-status.active { background: #00ff00; box-shadow: 0 0 7px #00ff00; }
+
+    #slideshow-exit { position: absolute; left: 50%; bottom: 15px; transform: translateX(-50%) scale(var(--ui-scale)); transform-origin: bottom center; z-index: 70; padding: 10px 16px; border-radius: 14px; }
+    #gesture-hint { position: absolute; bottom: 6px; width: 100%; text-align: center; color: rgba(255,110,199,0.78); font-size: 10px; pointer-events: none; text-shadow: 0 0 5px #000; z-index: 5; padding: 0 10px; box-sizing: border-box; }
+
+    #loader { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: #050505; z-index: 100; display: flex; flex-direction: column; align-items: center; justify-content: center; transition: opacity 0.5s ease-out; }
+    .spinner { width: 52px; height: 52px; border: 1px solid rgba(255, 110, 199, 0.12); border-top: 2px solid var(--accent); border-radius: 50%; animation: spin 1s cubic-bezier(0.4, 0, 0.2, 1) infinite; }
+    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    .loader-text { color: var(--accent); font-size: 12px; letter-spacing: 4px; margin-top: 22px; font-family: 'Cinzel', serif; opacity: 0.85; }
+
+    /* 音乐提示 */
+    #audio-unlock {
+      position: absolute; left: 50%; top: 78%; transform: translateX(-50%);
+      z-index: 90; pointer-events: auto; display: none;
+      padding: 10px 14px; border-radius: 12px;
+      background: rgba(0,0,0,0.65); border: 1px solid rgba(255,110,199,0.55);
+      color: var(--accent-soft); font-size: 12px; user-select: none;
+      animation: pulse-border 2s infinite; cursor: pointer;
+    }
+    @keyframes pulse-border {
+      0% { box-shadow: 0 0 0 0 rgba(255, 110, 199, 0.4); }
+      70% { box-shadow: 0 0 0 10px rgba(255, 110, 199, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(255, 110, 199, 0); }
+    }
+    #audio-unlock:hover { background: rgba(255,110,199,0.25); border-color: #fff; color: #fff; }
+  </style>
+
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/",
+        "@mediapipe/tasks-vision": "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3/+esm"
+      }
+    }
+  </script>
+</head>
+
+<body>
+  <div id="loader">
+    <div class="spinner"></div>
+    <div class="loader-text">SYSTEM INITIALIZING</div>
+  </div>
+
+  <div id="canvas-container"></div>
+  <div id="hand-cursor"></div>
+
+  <div id="title-container">
+    <h1 id="display-line2" class="title-line">Merry Christmas</h1>
+  </div>
+
+  <div id="audio-unlock" class="glass-panel">🔊 点击任意位置以开始音乐</div>
+
+  <div id="ui-layer">
+    <div id="top-right-controls">
+      <button class="elegant-btn glass-panel" id="fs-btn">⛶ 全屏显示</button>
+    </div>
+
+    <div id="left-sidebar">
+      <div class="glass-panel panel-inner">
+        <div class="ui-title-main">选项</div>
+        <button class="elegant-btn left-btn" id="memory-btn">🎞 回忆回顾</button>
+        <button class="elegant-btn left-btn" id="blessing-btn">💌 祝福语</button>
+        <div class="ui-tip">
+          <strong>手势控制:</strong><br/>
+          ☝️ <strong>食指</strong> = 光标选中<br/>
+          🖐 <strong>张开</strong> = 散开 / 旋转<br/>
+          ✊ <strong>握拳</strong> = 聚合成树
+        </div>
+      </div>
+    </div>
+
+    <div id="blessing-panel" class="glass-panel hidden">
+      <h3>BLESSINGS</h3>
+      <p id="blessing-text">TO：东东
+	圣诞快乐呀！祝东东以后天天开心，远离烦恼噻！做一只无忧无虑的 dongdong 羊！
+	我之前在《云边的小卖部》里看到几句话，特别有感情，就想借那个意思跟你说：东东每一次提醒和“说我”，落在我耳朵里反而像歌一样好听——因为我知道你不是在怪我，而是希望我变得更好。所以我愿意听，也会认真记在心里。
+	东东有很多优秀的点！我先说一个：你真的特别守时。反过来我就偶尔会迟到……我真的是个小笨蛋，总让你等噻。我也知道不管多晚你都会等，但我更心疼你呀——全天下独一无二的东东，怎么能老被我拖着等呢！以后我绝不会再让东东等那么久了，我也不忍心！！！
+	最后，借圣诞节的典故祝福你：愿“伯利恒之星”把温柔与方向带给你，愿平安夜的钟声把平安与喜乐送到你身边。这个冬天、以及往后的每一天，愿你都被善意环绕，心里亮亮的、暖暖的。🎄✨</p>
+    </div>
+
+    <button class="elegant-btn glass-panel hidden" id="slideshow-exit">⟵ 退出回顾</button>
+    <button class="elegant-btn glass-panel" id="view-btn">👁 视角预览：开</button>
+  </div>
+
+  <div id="gesture-hint">正在初始化系统...</div>
+
+  <div id="webcam-wrapper">
+    <canvas id="webcam-canvas" width="320" height="240"></canvas>
+    <div id="cam-status"></div>
+  </div>
+  <video id="webcam-video" autoplay playsinline muted style="display:none"></video>
+
+  <script type="module">
+    import * as THREE from 'three';
+    import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+    import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+    import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+    import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+    import { FilesetResolver, HandLandmarker } from '@mediapipe/tasks-vision';
+
+    const MANIFEST_URL = "./assets/manifest.json";
+
+    let CONFIG = {
+      colors: {
+        bg: 0x12000f,
+        champagneGold: 0xff7ad9,
+        deepGreen: 0x2a0033,
+        accentRed: 0xff2e8a
+      },
+      particles: { count: 1100, dustCount: 1400, treeHeight: 24, treeRadius: 8 },
+      snow: { count: 900, range: 70, speed: 3.2, sizeBase: 0.11, sizeVar: 0.1 },
+      camera: { z: 50 },
+      interaction: {
+        rotationSpeed: 1.5,
+        pointerSensitivity: 2.8 
+      }
+    };
+
+    const STATE = {
+      mode: 'TREE',
+      focusTarget: null,
+      focusType: 0,
+      hand: { detected: false, x: 0, y: 0 }, 
+      rotation: { x: 0, y: 0 },
+      cameraVisible: true,
+      cameraInited: false,
+      slideshow: { playing: false, timer: null, index: 0, intervalMs: 2500 },
+      blessingVisible: false
+    };
+
+    let manualRotateState = { x: 0, y: 0 };
+    let scene, camera, renderer, composer, mainGroup;
+    let particleSystem = [];
+    let photoMeshGroup = new THREE.Group();
+    let snowInstancedMesh = null, snowDummy = new THREE.Object3D(), snowData = [];
+    const clock = new THREE.Clock();
+    let caneTexture = null;
+    const raycaster = new THREE.Raycaster();
+    
+    let handLandmarker = null;
+    let videoElement = null;
+    let lastVideoTime = -1;
+    let camStream = null;
+
+    const bgmAudio = new Audio();
+    bgmAudio.loop = false;
+    let musicList = [];
+    let musicIndex = 0;
+    let manifestPhotos = [];
+
+    function setHint(text) {
+      const el = document.getElementById('gesture-hint');
+      if (el) el.innerText = text;
+    }
+    
+    function updateCursorVisual(show, isActive) {
+      const cursor = document.getElementById('hand-cursor');
+      if (!show || !STATE.hand.detected) {
+        cursor.style.display = 'none';
+        return;
+      }
+      cursor.style.display = 'block';
+      let cx = STATE.hand.x * CONFIG.interaction.pointerSensitivity;
+      let cy = STATE.hand.y * CONFIG.interaction.pointerSensitivity;
+      cx = Math.max(-1.05, Math.min(1.05, cx));
+      cy = Math.max(-1.05, Math.min(1.05, cy));
+      const screenX = (cx * 0.5 + 0.5) * window.innerWidth;
+      const screenY = (-cy * 0.5 + 0.5) * window.innerHeight;
+      cursor.style.left = screenX + 'px';
+      cursor.style.top = screenY + 'px';
+      if (isActive) cursor.classList.add('active');
+      else cursor.classList.remove('active');
+    }
+
+    async function toggleFullScreen() {
+      if (!document.fullscreenElement) await document.documentElement.requestFullscreen();
+      else await document.exitFullscreen();
+    }
+
+    function stopSlideshow() {
+      STATE.slideshow.playing = false;
+      if (STATE.slideshow.timer) { clearInterval(STATE.slideshow.timer); STATE.slideshow.timer = null; }
+      document.getElementById('slideshow-exit').classList.add('hidden');
+    }
+    function goHome() {
+      stopSlideshow();
+      STATE.focusTarget = null;
+      STATE.focusType = 0;
+      STATE.rotation = { x: 0, y: 0 };
+      setMode('TREE');
+    }
+    function setMode(mode) {
+      STATE.mode = mode;
+      if (mode !== 'FOCUS') STATE.focusTarget = null;
+      if (mode === 'TREE') setHint("🎄 圣诞树 | ☝️食指=光标 | 🖐张手=散开 | ✊握拳=重置");
+      else if (mode === 'SCATTER') setHint("✨ 星云 | ☝️食指=光标 | 🖐张手=旋转 | ✊握拳=变树");
+      else if (mode === 'FOCUS') setHint("🎞 回忆模式 | 禁止手势打断 (请按按钮退出)");
+    }
+    function getPhotoParticles() { return particleSystem.filter(p => p.type === 'PHOTO'); }
+    function playSlideshow() {
+      const photos = getPhotoParticles();
+      if (!photos.length) { setHint("⚠ 没有可播放的照片"); return; }
+      STATE.slideshow.playing = true; STATE.slideshow.index = 0;
+      const focusAt = (idx) => {
+        const p = photos[idx % photos.length];
+        STATE.focusType = 0; setMode('FOCUS'); STATE.focusTarget = p.mesh;
+      };
+      focusAt(STATE.slideshow.index);
+      document.getElementById('slideshow-exit').classList.remove('hidden');
+      if (STATE.slideshow.timer) clearInterval(STATE.slideshow.timer);
+      STATE.slideshow.timer = setInterval(() => {
+        if (!STATE.slideshow.playing) return;
+        STATE.slideshow.index = (STATE.slideshow.index + 1) % photos.length;
+        focusAt(STATE.slideshow.index);
+      }, STATE.slideshow.intervalMs);
+    }
+    function toggleBlessing() {
+      STATE.blessingVisible = !STATE.blessingVisible;
+      document.getElementById('blessing-panel').classList.toggle('hidden', !STATE.blessingVisible);
+    }
+    async function toggleViewPreview() {
+      STATE.cameraVisible = !STATE.cameraVisible;
+      document.getElementById('webcam-wrapper').classList.toggle('camera-hidden', !STATE.cameraVisible);
+      document.getElementById('view-btn').innerText = STATE.cameraVisible ? "👁 视角预览：开" : "👁 视角预览：关";
+      if (STATE.cameraVisible) {
+        if (!STATE.cameraInited) { STATE.cameraInited = true; await initMediaPipeAndCamera(); }
+        else await startCameraOnly();
+      } else stopCamera();
+    }
+
+    function initThree() {
+      const container = document.getElementById('canvas-container');
+      scene = new THREE.Scene(); scene.background = new THREE.Color(CONFIG.colors.bg); scene.fog = new THREE.FogExp2(CONFIG.colors.bg, 0.012);
+      camera = new THREE.PerspectiveCamera(42, window.innerWidth / window.innerHeight, 0.1, 1000);
+      camera.position.set(0, 2, CONFIG.camera.z);
+      renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, powerPreference: "high-performance" });
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.25));
+      renderer.toneMapping = THREE.ReinhardToneMapping; renderer.toneMappingExposure = 1.9;
+      container.appendChild(renderer.domElement);
+      mainGroup = new THREE.Group(); scene.add(mainGroup); scene.add(photoMeshGroup);
+    }
+    function setupEnvironment() { const pmrem = new THREE.PMREMGenerator(renderer); scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture; }
+    function setupLights() {
+      scene.add(new THREE.AmbientLight(0xffffff, 0.62));
+      const point = new THREE.PointLight(0xff86db, 2.0, 30); point.position.set(0, 5, 0); scene.add(point);
+      const s1 = new THREE.SpotLight(0xffc2ee, 900); s1.position.set(30, 40, 40); s1.angle = 0.5; s1.penumbra = 0.5; scene.add(s1);
+      const s2 = new THREE.SpotLight(0xff4fb1, 450); s2.position.set(-30, 20, -30); scene.add(s2);
+      const dir = new THREE.DirectionalLight(0xffe3f5, 0.7); dir.position.set(0, 0, 50); scene.add(dir);
+    }
+    function setupPostProcessing() {
+      const renderPass = new RenderPass(scene, camera);
+      const bloom = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 1.0, 0.35, 0.9);
+      bloom.threshold = 0.78; bloom.strength = 0.28; bloom.radius = 0.25;
+      composer = new EffectComposer(renderer); composer.addPass(renderPass); composer.addPass(bloom);
+    }
+    function createTextures() {
+      const c = document.createElement('canvas'); c.width = 128; c.height = 128; const ctx = c.getContext('2d');
+      ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, 128, 128); ctx.fillStyle = '#ff6ec7'; ctx.beginPath();
+      for (let i = -128; i < 256; i += 32) { ctx.moveTo(i, 0); ctx.lineTo(i + 32, 128); ctx.lineTo(i + 16, 128); ctx.lineTo(i - 16, 0); } ctx.fill();
+      caneTexture = new THREE.CanvasTexture(c); caneTexture.wrapS = caneTexture.wrapT = THREE.RepeatWrapping; caneTexture.repeat.set(3, 3);
+    }
+
+    class Particle {
+      constructor(mesh, type, isDust = false) {
+        this.mesh = mesh; this.type = type; this.isDust = isDust;
+        this.posTree = new THREE.Vector3(); this.posScatter = new THREE.Vector3(); this.baseScale = mesh.scale.x; this.photoId = null;
+        const spin = (type === 'PHOTO') ? 0.28 : 1.8;
+        this.spinSpeed = new THREE.Vector3((Math.random()-0.5)*spin, (Math.random()-0.5)*spin, (Math.random()-0.5)*spin);
+        this.calcPos();
+      }
+      calcPos() {
+        const h = CONFIG.particles.treeHeight; const t = Math.pow(Math.random(), 0.8); const y = (t * h) - (h / 2);
+        const rm = Math.max(0.5, CONFIG.particles.treeRadius * (1.0 - t)); const a = t * 50 * Math.PI + Math.random() * Math.PI; const r = rm * (0.8 + Math.random() * 0.4);
+        this.posTree.set(Math.cos(a) * r, y, Math.sin(a) * r);
+        const rs = this.isDust ? (12 + Math.random() * 20) : (8 + Math.random() * 12);
+        const th = Math.random() * Math.PI * 2; const ph = Math.acos(2 * Math.random() - 1);
+        this.posScatter.set(rs * Math.sin(ph) * Math.cos(th), rs * Math.sin(ph) * Math.sin(th), rs * Math.cos(ph));
+      }
+      update(dt, mode, focusTarget) {
+        let target = this.posTree;
+        if (mode === 'SCATTER') target = this.posScatter;
+        else if (mode === 'FOCUS') {
+          if (this.mesh === focusTarget) {
+            let off = new THREE.Vector3(0, 1, 38);
+            if (STATE.focusType === 1) off.set(-4, 2, 35); else if (STATE.focusType === 2) off.set(3, 0, 32); else if (STATE.focusType === 3) off.set(0, -2.5, 30);
+            const worldToLocal = new THREE.Matrix4().copy(mainGroup.matrixWorld).invert(); target = off.applyMatrix4(worldToLocal);
+          } else target = this.posScatter;
+        }
+        const lerpSpeed = (mode === 'FOCUS' && this.mesh === focusTarget) ? 8.0 : 4.0;
+        this.mesh.position.lerp(target, lerpSpeed * dt);
+        if (mode === 'SCATTER') { this.mesh.rotation.x += this.spinSpeed.x * dt; this.mesh.rotation.y += this.spinSpeed.y * dt; this.mesh.rotation.z += this.spinSpeed.z * dt; }
+        else if (mode === 'TREE') { this.mesh.rotation.x = THREE.MathUtils.lerp(this.mesh.rotation.x, 0, dt); this.mesh.rotation.z = THREE.MathUtils.lerp(this.mesh.rotation.z, 0, dt); this.mesh.rotation.y += 0.5 * dt; }
+        if (mode === 'FOCUS' && this.mesh === focusTarget) { this.mesh.lookAt(camera.position); if (STATE.focusType === 1) this.mesh.rotateZ(0.38); if (STATE.focusType === 2) this.mesh.rotateZ(-0.15); if (STATE.focusType === 3) this.mesh.rotateX(-0.4); }
+        let s = this.baseScale;
+        if (this.isDust) { s = this.baseScale * (0.8 + 0.4 * Math.sin(clock.elapsedTime * 4 + this.mesh.id)); if (mode === 'TREE') s = 0; }
+        else if (mode === 'SCATTER' && this.type === 'PHOTO') s = this.baseScale * 2.4;
+        else if (mode === 'FOCUS') { if (this.mesh === focusTarget) { if (STATE.focusType === 2) s = 3.3; else if (STATE.focusType === 3) s = 4.5; else s = 2.9; } else s = this.baseScale * 0.8; }
+        this.mesh.scale.lerp(new THREE.Vector3(s, s, s), 6 * dt);
+      }
+    }
+    function createParticles() {
+      const sphereG = new THREE.SphereGeometry(0.5, 24, 24); const boxG = new THREE.BoxGeometry(0.55, 0.55, 0.55);
+      const curve = new THREE.CatmullRomCurve3([new THREE.Vector3(0, -0.5, 0), new THREE.Vector3(0, 0.3, 0), new THREE.Vector3(0.1, 0.5, 0), new THREE.Vector3(0.3, 0.4, 0)]);
+      const caneG = new THREE.TubeGeometry(curve, 14, 0.08, 8, false);
+      const pinkM = new THREE.MeshStandardMaterial({ color: CONFIG.colors.champagneGold, metalness: 0.9, roughness: 0.14, envMapIntensity: 1.6, emissive: 0x2a001f, emissiveIntensity: 0.35 });
+      const deepM = new THREE.MeshStandardMaterial({ color: CONFIG.colors.deepGreen, metalness: 0.15, roughness: 0.85, emissive: 0x14000f, emissiveIntensity: 0.18 });
+      const accentM = new THREE.MeshStandardMaterial({ color: CONFIG.colors.accentRed, metalness: 0.25, roughness: 0.22, emissive: 0x220013, emissiveIntensity: 0.22 });
+      const caneM = new THREE.MeshStandardMaterial({ map: caneTexture, roughness: 0.45 });
+      for (let i = 0; i < CONFIG.particles.count; i++) {
+        const r = Math.random(); let mesh, type;
+        if (r < 0.45) { mesh = new THREE.Mesh(boxG, deepM); type = 'BOX'; } else if (r < 0.78) { mesh = new THREE.Mesh(boxG, pinkM); type = 'PINK_BOX'; }
+        else if (r < 0.94) { mesh = new THREE.Mesh(sphereG, pinkM); type = 'PINK_SPHERE'; } else if (r < 0.98) { mesh = new THREE.Mesh(sphereG, accentM); type = 'ACCENT'; }
+        else { mesh = new THREE.Mesh(caneG, caneM); type = 'CANE'; }
+        const s = 0.4 + Math.random() * 0.5; mesh.scale.set(s, s, s); mesh.rotation.set(Math.random()*6, Math.random()*6, Math.random()*6);
+        mainGroup.add(mesh); particleSystem.push(new Particle(mesh, type, false));
+      }
+      const star = new THREE.Mesh(new THREE.OctahedronGeometry(1.2, 0), new THREE.MeshStandardMaterial({ color: 0xffc2ee, emissive: 0xff6ec7, emissiveIntensity: 1.05, metalness: 1, roughness: 0.05 }));
+      star.position.set(0, CONFIG.particles.treeHeight / 2 + 1.2, 0); mainGroup.add(star);
+    }
+    function createDust() {
+      const g = new THREE.TetrahedronGeometry(0.08, 0); const m = new THREE.MeshBasicMaterial({ color: 0xffc2ee, transparent: true, opacity: 0.75 });
+      for (let i = 0; i < CONFIG.particles.dustCount; i++) { const mesh = new THREE.Mesh(g, m); mesh.scale.setScalar(0.5 + Math.random()); mainGroup.add(mesh); particleSystem.push(new Particle(mesh, 'DUST', true)); }
+    }
+    function createDefaultPhotoFallback() {
+      const c = document.createElement('canvas'); c.width = 512; c.height = 512; const ctx = c.getContext('2d');
+      ctx.fillStyle = '#050505'; ctx.fillRect(0, 0, 512, 512); ctx.strokeStyle = '#ff6ec7'; ctx.lineWidth = 15; ctx.strokeRect(20, 20, 472, 472);
+      ctx.font = '700 58px Cinzel'; ctx.fillStyle = '#ffd1ef'; ctx.textAlign = 'center'; ctx.fillText("MERRY", 256, 240); ctx.fillText("CHRISTMAS", 256, 310);
+      createPhotoTextureFromDataURL(c.toDataURL(), 'default');
+    }
+    function createPhotoTextureFromDataURL(dataURL, id) { const img = new Image(); img.src = dataURL; img.onload = () => { const tex = new THREE.Texture(img); tex.colorSpace = THREE.SRGBColorSpace; tex.needsUpdate = true; addPhotoToScene(tex, id, img); }; }
+    function createPhotoTextureFromUrl(url, id) { const img = new Image(); img.crossOrigin = "anonymous"; img.src = url; img.onload = () => { const tex = new THREE.Texture(img); tex.colorSpace = THREE.SRGBColorSpace; tex.needsUpdate = true; addPhotoToScene(tex, id, img); }; img.onerror = () => console.warn("Photo load failed:", url); }
+    
+    // ✅ 修复：Hit Box (隐形大盒子) 方便选中
+    function addPhotoToScene(texture, id, imgObj) {
+      const aspect = imgObj.width / imgObj.height; let w = 1.2, h = 1.2; if (aspect > 1) h = w / aspect; else w = h * aspect;
+      const frameG = new THREE.BoxGeometry(w + 0.2, h + 0.2, 0.05); const frameM = new THREE.MeshStandardMaterial({ color: 0x3a1030, metalness: 0.55, roughness: 0.55, envMapIntensity: 0.5 });
+      const frame = new THREE.Mesh(frameG, frameM);
+      const planeG = new THREE.PlaneGeometry(w, h); const planeM = new THREE.MeshBasicMaterial({ map: texture }); const plane = new THREE.Mesh(planeG, planeM); plane.position.z = 0.04;
+      
+      const hitG = new THREE.BoxGeometry(w + 0.8, h + 0.8, 1.5); 
+      const hitM = new THREE.MeshBasicMaterial({ visible: false });
+      const hitBox = new THREE.Mesh(hitG, hitM);
+
+      const group = new THREE.Group(); group.add(frame); group.add(plane); group.add(hitBox); group.scale.set(0.8, 0.8, 0.8);
+      photoMeshGroup.add(group); const p = new Particle(group, 'PHOTO', false); p.photoId = id; p.texture = texture; particleSystem.push(p);
+    }
+    
+    function clearAllPhotosInScene() { const keep = []; particleSystem.forEach(p => { if (p.type === 'PHOTO') photoMeshGroup.remove(p.mesh); else keep.push(p); }); particleSystem = keep; }
+    async function loadPhotosFromManifest() { clearAllPhotosInScene(); if (manifestPhotos.length) manifestPhotos.forEach((url, idx) => createPhotoTextureFromUrl(url, "m_" + idx)); else createDefaultPhotoFallback(); }
+    function createSnow() {
+      if (snowInstancedMesh) { scene.remove(snowInstancedMesh); snowInstancedMesh.geometry.dispose(); snowInstancedMesh.material.dispose(); snowInstancedMesh = null; snowData = []; }
+      if (CONFIG.snow.count <= 0) return;
+      const g = new THREE.IcosahedronGeometry(CONFIG.snow.sizeBase, 0); const m = new THREE.MeshStandardMaterial({ color: 0xffffff, metalness: 0.0, roughness: 0.25, emissive: 0x220013, emissiveIntensity: 0.10 });
+      snowInstancedMesh = new THREE.InstancedMesh(g, m, CONFIG.snow.count); snowInstancedMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+      for (let i = 0; i < CONFIG.snow.count; i++) {
+        snowDummy.position.set((Math.random()-0.5)*CONFIG.snow.range, Math.random()*CONFIG.snow.range, (Math.random()-0.5)*CONFIG.snow.range);
+        snowDummy.rotation.set(Math.random()*Math.PI, Math.random()*Math.PI, Math.random()*Math.PI);
+        const s = 0.5 + Math.random() * CONFIG.snow.sizeVar; snowDummy.scale.set(s, s, s); snowDummy.updateMatrix(); snowInstancedMesh.setMatrixAt(i, snowDummy.matrix);
+        snowData.push({ vy: (Math.random()*0.5+0.8), rx: (Math.random()-0.5)*2, ry: (Math.random()-0.5)*2, rz: (Math.random()-0.5)*2 });
+      }
+      scene.add(snowInstancedMesh);
+    }
+
+    function setMusicList(list) { musicList = Array.isArray(list) ? list.slice() : []; musicIndex = 0; }
+    function currentTrack() { return musicList[musicIndex] || ""; }
+    function loadTrack(index) { if (!musicList.length) return false; musicIndex = (index + musicList.length) % musicList.length; bgmAudio.src = currentTrack(); return true; }
+    
+    // 🎵 自动尝试播放，被拦截则显示提示
+    async function tryPlayMusicAuto() {
+      if (!musicList.length) return;
+      if (!bgmAudio.src) loadTrack(0);
+      try { 
+        await bgmAudio.play(); 
+        document.getElementById('audio-unlock').style.display = 'none';
+      } catch (e) { 
+        // 自动播放被拦截：显示提示
+        const unlock = document.getElementById('audio-unlock');
+        unlock.style.display = 'block';
+        
+        const unlockFunc = () => {
+            bgmAudio.play().then(() => {
+                unlock.style.display = 'none';
+            }).catch(() => {});
+            // 只要点一次就移除监听
+            window.removeEventListener('click', unlockFunc);
+            window.removeEventListener('touchstart', unlockFunc);
+        };
+        
+        window.addEventListener('click', unlockFunc);
+        window.addEventListener('touchstart', unlockFunc);
+      }
+    }
+    
+    bgmAudio.addEventListener('ended', async () => { if (!musicList.length) return; loadTrack(musicIndex + 1); try { await bgmAudio.play(); } catch (e) {} });
+    async function loadManifest() {
+      try { const res = await fetch(MANIFEST_URL, { cache: "no-store" }); if (!res.ok) throw new Error("manifest fetch failed"); const json = await res.json(); const base = new URL(MANIFEST_URL, location.href); const resolve = (p) => new URL(p, base).toString(); const photos = (json.photos || []).map(resolve); const music = (json.music || []).map(resolve); manifestPhotos = photos; setMusicList(music); return { photos, music }; } catch (e) { console.warn(e); manifestPhotos = []; setMusicList([]); return { photos: [], music: [] }; }
+    }
+
+    const GEST = { fingerOpen: 0.30, fingerClose: 0.16, modeCooldownMs: 500, pointerCooldownMs: 800, smooth: 0.20 };
+    const gestureState = { lastModeAt: 0, lastPointerAt: 0, lastTs: performance.now() };
+
+    function renderWebcamPreview() {
+      const c = document.getElementById('webcam-canvas'); const ctx = c.getContext('2d', { willReadFrequently: true });
+      function loop() {
+        if (!STATE.cameraVisible) { requestAnimationFrame(loop); return; }
+        if (videoElement && videoElement.readyState >= 2) ctx.drawImage(videoElement, 0, 0, c.width, c.height);
+        requestAnimationFrame(loop);
+      } loop();
+    }
+
+    function processGestures(result) {
+      const now = performance.now();
+      const dt = Math.max(0, now - gestureState.lastTs) / 1000;
+      gestureState.lastTs = now;
+
+      if (result?.landmarks && result.landmarks.length > 0) {
+        // ✅ 拦截逻辑：如果是 Slideshow 模式，禁止所有手势操作
+        if (STATE.slideshow.playing) {
+            updateCursorVisual(false, false);
+            return;
+        }
+
+        const lm = result.landmarks[0];
+        STATE.hand.detected = true;
+
+        let rawX = (lm[8].x - 0.5) * 2; let rawY = (lm[8].y - 0.5) * 2;
+        STATE.hand.x += (rawX - STATE.hand.x) * GEST.smooth; STATE.hand.y += (rawY - STATE.hand.y) * GEST.smooth;
+
+        const wrist = lm[0];
+        const dist = (idx) => Math.hypot(lm[idx].x - wrist.x, lm[idx].y - wrist.y);
+        const dIndex = dist(8), dMiddle = dist(12), dRing = dist(16), dPinky = dist(20);
+
+        const isPointing = (dIndex > GEST.fingerOpen && dMiddle < GEST.fingerClose && dRing < GEST.fingerClose);
+        const isOpen = (dIndex > GEST.fingerOpen && dMiddle > GEST.fingerOpen && dRing > GEST.fingerOpen && dPinky > GEST.fingerOpen);
+        const isFist = (dIndex < GEST.fingerClose && dMiddle < GEST.fingerClose && dRing < GEST.fingerClose && dPinky < GEST.fingerClose);
+
+        if (isPointing) {
+           updateCursorVisual(true, false);
+           if ((now - gestureState.lastPointerAt) > GEST.pointerCooldownMs && STATE.mode !== 'FOCUS') {
+               let cx = STATE.hand.x * CONFIG.interaction.pointerSensitivity;
+               let cy = STATE.hand.y * CONFIG.interaction.pointerSensitivity;
+               raycaster.setFromCamera({ x: cx, y: -cy }, camera);
+               
+               // ✅ HitBox 检测逻辑
+               const intersects = raycaster.intersectObjects(photoMeshGroup.children, true);
+               let hitMesh = null;
+               for (let i = 0; i < intersects.length; i++) {
+                 if (intersects[i].distance > 100) continue; 
+                 let obj = intersects[i].object;
+                 while(obj.parent && obj.parent !== photoMeshGroup) obj = obj.parent;
+                 const p = particleSystem.find(p => p.mesh === obj && p.type === 'PHOTO');
+                 if (p) { hitMesh = obj; break; }
+               }
+               
+               if (hitMesh) {
+                   updateCursorVisual(true, true);
+                   gestureState.lastPointerAt = now; stopSlideshow();
+                   STATE.focusType = Math.floor(Math.random() * 4); setMode('FOCUS'); STATE.focusTarget = hitMesh;
+               }
+           }
+        } 
+        else if (isOpen) {
+           updateCursorVisual(false, false);
+           if ((now - gestureState.lastModeAt) > GEST.modeCooldownMs) {
+             if (STATE.mode === 'FOCUS' || STATE.mode === 'TREE') { 
+                 gestureState.lastModeAt = now; setMode('SCATTER'); 
+             } else {
+               const rotSpeed = CONFIG.interaction.rotationSpeed; const threshold = 0.2;
+               if (STATE.hand.x > threshold) STATE.rotation.y -= rotSpeed * dt * (STATE.hand.x - threshold);
+               if (STATE.hand.x < -threshold) STATE.rotation.y -= rotSpeed * dt * (STATE.hand.x + threshold);
+               if (STATE.hand.y < -threshold) STATE.rotation.x += rotSpeed * dt * (-STATE.hand.y - threshold);
+               if (STATE.hand.y > threshold) STATE.rotation.x -= rotSpeed * dt * (STATE.hand.y - threshold);
+             }
+           }
+        }
+        else if (isFist) {
+           updateCursorVisual(false, false);
+           if ((now - gestureState.lastModeAt) > GEST.modeCooldownMs && STATE.mode !== 'TREE') {
+              gestureState.lastModeAt = now; setMode('TREE');
+           }
+        } 
+        else { updateCursorVisual(false, false); }
+      } else {
+        STATE.hand.detected = false; updateCursorVisual(false, false);
+      }
+    }
+
+    async function predictWebcam() {
+      if (!STATE.cameraVisible) { requestAnimationFrame(predictWebcam); return; }
+      if (videoElement && handLandmarker) {
+        if (videoElement.currentTime !== lastVideoTime) {
+          lastVideoTime = videoElement.currentTime;
+          const result = handLandmarker.detectForVideo(videoElement, performance.now());
+          processGestures(result);
+          const active = result?.landmarks?.length > 0;
+          document.getElementById('cam-status').classList.toggle('active', active);
+        }
+      }
+      requestAnimationFrame(predictWebcam);
+    }
+
+    function stopCamera() {
+      if (camStream) { camStream.getTracks().forEach(t => t.stop()); camStream = null; }
+      if (videoElement) videoElement.srcObject = null;
+      document.getElementById('cam-status').classList.remove('active');
+      document.getElementById('hand-cursor').style.display = 'none';
+    }
+    async function startCameraOnly() {
+      videoElement = document.getElementById('webcam-video');
+      if (!window.isSecureContext) { setHint("⚠ 需要 https 或 localhost"); return; }
+      try {
+        camStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+        videoElement.srcObject = camStream;
+        videoElement.onloadedmetadata = async () => { try { await videoElement.play(); } catch (_) {} };
+      } catch (e) { setHint("⚠ 摄像头启动失败"); }
+    }
+    async function initMediaPipeAndCamera() {
+      videoElement = document.getElementById('webcam-video');
+      if (!window.isSecureContext) { setHint("⚠ 需要 https 或 localhost"); return; }
+      try {
+        camStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+        videoElement.srcObject = camStream;
+        videoElement.onloadedmetadata = async () => {
+          try { await videoElement.play(); } catch (_) {}
+          renderWebcamPreview();
+        };
+      } catch (e) { console.error(e); setHint("⚠ 摄像头启动失败"); return; }
+
+      try {
+        const vision = await FilesetResolver.forVisionTasks("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3/wasm");
+        handLandmarker = await HandLandmarker.createFromOptions(vision, {
+          baseOptions: { modelAssetPath: "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task", delegate: "GPU" },
+          runningMode: "VIDEO", numHands: 1, minHandDetectionConfidence: 0.6, minHandPresenceConfidence: 0.6, minTrackingConfidence: 0.6
+        });
+        setHint("✅ 系统就绪：☝️食指=光标 | 🖐张手=旋转 | ✊握拳=重置");
+        predictWebcam();
+      } catch (e) { console.warn(e); setHint("⚠ 手势初始化失败"); }
+    }
+
+    function setupEvents() {
+      window.addEventListener('resize', () => {
+        camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight); composer.setSize(window.innerWidth, window.innerHeight);
+      });
+      document.getElementById('fs-btn').addEventListener('click', toggleFullScreen);
+      document.getElementById('memory-btn').addEventListener('click', () => { if (!STATE.slideshow.playing) playSlideshow(); });
+      document.getElementById('slideshow-exit').addEventListener('click', () => goHome());
+      document.getElementById('blessing-btn').addEventListener('click', () => toggleBlessing());
+      document.getElementById('view-btn').addEventListener('click', () => toggleViewPreview());
+      window.addEventListener('keydown', (e) => {
+        if (['INPUT','SELECT','TEXTAREA'].includes(e.target?.tagName)) return;
+        const code = e.code; if (code === 'Escape') goHome();
+        if (e.key.toLowerCase() === 'p') { if (STATE.slideshow.playing) goHome(); else playSlideshow(); }
+        if (code === 'ArrowUp') manualRotateState.x = -1; if (code === 'ArrowDown') manualRotateState.x = 1;
+        if (code === 'ArrowLeft') manualRotateState.y = -1; if (code === 'ArrowRight') manualRotateState.y = 1;
+      });
+      window.addEventListener('keyup', (e) => { if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) manualRotateState = { x: 0, y: 0 }; });
+    }
+
+    function animate() {
+      requestAnimationFrame(animate); const dt = clock.getDelta(); const et = clock.getElapsedTime();
+      if (snowInstancedMesh && STATE.mode === 'TREE') {
+        snowInstancedMesh.visible = true;
+        for (let i = 0; i < CONFIG.snow.count; i++) {
+          snowInstancedMesh.getMatrixAt(i, snowDummy.matrix); snowDummy.matrix.decompose(snowDummy.position, snowDummy.quaternion, snowDummy.scale);
+          const d = snowData[i]; snowDummy.position.y -= d.vy * CONFIG.snow.speed * dt; snowDummy.position.x += Math.sin(et * 0.5 + i) * 2.2 * dt; snowDummy.position.z += Math.cos(et * 0.3 + i) * 1.3 * dt;
+          snowDummy.rotation.x += d.rx * dt; snowDummy.rotation.y += d.ry * dt; snowDummy.rotation.z += d.rz * dt;
+          if (snowDummy.position.y < -25) { snowDummy.position.y = 40; snowDummy.position.x = (Math.random()-0.5)*CONFIG.snow.range; snowDummy.position.z = (Math.random()-0.5)*CONFIG.snow.range; }
+          snowDummy.updateMatrix(); snowInstancedMesh.setMatrixAt(i, snowDummy.matrix);
+        }
+        snowInstancedMesh.instanceMatrix.needsUpdate = true;
+      } else if (snowInstancedMesh) { snowInstancedMesh.visible = false; }
+      if (manualRotateState.x !== 0 || manualRotateState.y !== 0) { const s = CONFIG.interaction.rotationSpeed * 2.0; STATE.rotation.x += manualRotateState.x * s * dt; STATE.rotation.y += manualRotateState.y * s * dt; }
+      else {
+        if (STATE.mode === 'TREE') { STATE.rotation.y += 0.3 * dt; STATE.rotation.x += (0 - STATE.rotation.x) * 2.0 * dt; } else { STATE.rotation.y += 0.1 * dt; }
+      }
+      mainGroup.rotation.y = STATE.rotation.y; mainGroup.rotation.x = STATE.rotation.x; photoMeshGroup.rotation.y = STATE.rotation.y; photoMeshGroup.rotation.x = STATE.rotation.x;
+      particleSystem.forEach(p => p.update(dt, STATE.mode, STATE.focusTarget));
+      composer.render();
+    }
+    
+    async function init() {
+      initThree(); setupEnvironment(); setupLights(); createTextures(); 
+      createParticles(); createDust(); createSnow(); setupPostProcessing(); setupEvents();
+      
+      const m = await loadManifest(); 
+      await loadPhotosFromManifest(); 
+      bgmAudio.volume = 0.65;
+      
+      // 🎵 自动尝试播放 (如果失败，点击屏幕任意位置会自动开始)
+      if (m.music.length) {
+          loadTrack(0);
+          tryPlayMusicAuto(); 
+      } else {
+          setHint("⚠ manifest 没有音乐");
+      }
+
+      // 📷 自动打开摄像头 (默认开启)
+      document.getElementById('webcam-wrapper').classList.toggle('camera-hidden', !STATE.cameraVisible);
+      document.getElementById('view-btn').innerText = STATE.cameraVisible ? "👁 视角预览：开" : "👁 视角预览：关";
+      if (STATE.cameraVisible && !STATE.cameraInited) { 
+        STATE.cameraInited = true; 
+        await initMediaPipeAndCamera(); // 直接初始化
+      }
+
+      const loader = document.getElementById('loader'); if (loader) { loader.style.opacity = 0; setTimeout(() => loader.remove(), 500); }
+      setMode('TREE'); animate();
+    }
+    
+    init();
+  </script>
+</body>
+</html>
